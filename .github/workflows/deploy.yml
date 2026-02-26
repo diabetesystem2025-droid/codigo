@@ -1,0 +1,53 @@
+name: Deploy Static Site to GitHub Pages
+
+on:
+  push:
+    branches: ["main"] # Cambia a "master" si esa es tu rama principal
+  workflow_dispatch:
+
+# Permisos necesarios para que GitHub Actions pueda publicar en Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Construir el proyecto (Build)
+        run: npm run build
+
+      # 👇 ESTA ES LA MAGIA QUE EVITA EL ERROR 404 👇
+      - name: Prevenir error 404 copiando index a 404.html
+        run: cp dist/index.html dist/404.html
+
+      - name: Configurar GitHub Pages
+        uses: actions/configure-pages@v4
+
+      - name: Subir artefacto (Carpeta de compilación)
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist' # ⚠️ CAMBIA ESTO si tu framework usa otra carpeta (ej. './build' para Create React App)
+
+      - name: Desplegar a GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
